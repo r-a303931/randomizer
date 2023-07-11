@@ -1,0 +1,451 @@
+<!--
+    Randomizer.html: a randomizer I made in 2016
+    Copyright (C) 2023 Andrew Rioux
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 2
+    of the License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+-->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Randomizer!</title>
+    <base target="_top">
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script>
+        var names,
+            called,
+            messageHtml = "<div class=\"message\">No one's been selected yet</div>",
+            nameHtml = "<div class=\"message\">No one's been added yet</div>",
+            lastname = "";
+
+        String.prototype.format = function() {
+            var args = arguments;
+            return this.replace(/{(\d+)}/g, function(match, number) { 
+            return typeof args[number] != 'undefined'
+                ? args[number]
+                : match
+            ;
+            });
+        };
+
+        function getRandom(max) {
+            var min = 0;
+            var max = Math.floor(max);
+            return Math.floor(Math.random() * (max));
+        }
+
+        function add (name) {
+            if ($("ul#names").html() == nameHtml) {
+            $("ul#names").html("");
+            }
+            names.push(name);
+            localStorage.setItem("names", JSON.stringify(names));
+            name = names.indexOf(name);
+            var html = '<li class="name {0}">{1}. {2}<a href="#" class="remove">&#10006;</a></li>'.format(name, name+1, names[name]);
+            $("ul#names").append(html);
+            $("a.remove").off().on("click", removeName);
+        }
+
+        function removeName (e) {
+            reset ();
+            try {
+            var id = $(this).parent().attr("class").split(" ")[1];
+            console.log("ID of name: "+id);
+            var name = names.splice(id, 1);
+            localStorage.setItem("names", JSON.stringify(names));
+            console.log("Name: "+name);
+            if (called.indexOf(name) < 0) {
+                called.splice(called.indexOf(name), 1);
+            }
+            $("li.name."+id).addClass("implode");
+            $("li.name.implode").removeClass(id);
+            setTimeout(function () {
+                $("li.name.implode").remove();
+                if (names.length == 0 && $("ul#names").html() != nameHtml) {
+                console.log("Name length is 0");
+                $("ul#names").html (nameHtml);
+                }
+            }, 1000);
+            console.log("Removing li");
+            var lis = $("li.name");
+            for (var i = 0, id = 0; i < names.length+1; i++) {
+                console.log(lis[i]);
+                if (lis[i].classList.contains("implode")) {
+
+                } else {
+                //console.log(lis[i]);
+                //console.log("Removing class "+lis[i].getAttribute("class").split(" ")[1]);
+                lis[i].className = "name "+id;
+                lis[i].innerHTML = '{0}. {1}<a class="remove">&#10006;</a>'.format(id+1, names[id]);
+                console.log(i);
+                console.log(lis[i].className);
+                console.log(lis[i].innerHTML);
+                console.log(lis[i]);
+                //console.log("Added class "+i);
+                id++;
+                }
+            }
+            } catch(e) {
+            console.log(e.toString());
+            }
+            $("a.remove").off().on("click", removeName);
+
+            return false;
+        }
+
+        function updateNames () {
+            $("ul#names").html("");
+            if (names.length == 0) {
+            $("ul#names").html(nameHtml);
+            } else {
+            for (var name = 0; name < names.length; name++) {
+                console.log("Adding name "+names[name]+" with "+name);
+                var html = '<li class="name {0}">{1}. {2}<a class="remove">&#10006;</a></li>'.format(name, name+1, names[name]);
+                $("ul#names").append(html);
+            }
+            }
+            $("a.remove").off().on("click", removeName);
+        }
+
+        function getRandomName () {
+            if (names.length > 0) {
+            if ($("ul#log").html() == messageHtml) {
+                $("ul#log").html("")
+            }
+            $(".selected").removeClass("selected");
+            var name = "";
+            name = names[getRandom(names.length)];
+            while (called.includes(name) || lastname == name) {
+                name = names[getRandom(names.length)];
+            }
+            lastname = name;
+            var id = names.indexOf(name);
+            $("li.name."+id).addClass("selected");
+            called.push(name);
+            $("ul#log").append('<li class="logname">{0} is next</li>'.format(name));
+            if (called.length == names.length) {
+                called = [];
+                $("ul#log").append('<li class="logname bar"></li>');
+            }
+            $("ul#log").animate({
+                scrollTop : $("li.logname").length * 1000
+            }, 0, "ease");
+            }
+        }
+
+        function reset () {
+            if ($("ul#log").html() != messageHtml) {
+            $("ul#log").html(messageHtml);
+            }
+            $("li.selected").removeClass("selected");
+            called = [];
+        }
+
+        function loadSave(e) {
+            var p = e.id.split("")[2];
+            console.log(localStorage.getItem("ps"+p) || "[]");
+            names = JSON.parse(localStorage.getItem("ps"+p) || "[]");
+            updateNames();
+        }
+
+        function saveSave (e) {
+            var p = e.id.split("")[2];
+            localStorage.setItem("ps"+p, JSON.stringify(names));
+        }
+
+        $(function () {
+            names = JSON.parse(localStorage.getItem("names")) || [];
+            updateNames();
+            called = [];
+            $("ul#log").html(localStorage.getItem("log") || messageHtml);
+            if ($("ul#log").html() == "undefined") {
+            $("ul#log").html(messageHtml);
+            }
+            $("input#adder").keyup(function (e) {
+            if (e.keyCode == 13 && $(this).val() != "") {
+                add($(this).val());
+                $(this).val("");
+            }
+            });
+            $("a.remove").off().on("click", removeName);
+        });
+
+        $(window).bind ('beforeunload', function () {
+            localStorage.setItem("names", JSON.stringify(names));
+        });
+    </script>
+    <style>
+        * {
+            padding:0;
+            margin:0;
+        }
+
+        html {
+            width:100%;
+            height:100%;
+            background-color:#fff;
+        }
+        body {
+            max-width:1200px;
+            width:80%;
+            margin:20px auto;
+            padding:40px;
+            padding-bottom:700px;
+            background-color:#f5f5f5;
+            border-radius:20px;
+        }
+        .box {
+            display:inline-block;
+            width:49.99999%;
+            float:left;
+            height:620px;
+            box-sizing:border-box;
+            padding:20px;
+        }
+        h1 {
+            text-align:center;
+            font-size:3em;
+        }
+        ul {
+            overflow-y:auto;
+            overflow-x:visible;
+            border-radius:10px;
+            list-style-type:none;
+        }
+        button {
+            border-radius:10px;
+            padding:10px;
+            box-sizing:border-box;
+            background-color:#fff;
+            display:inline-block;
+            float:left;
+        }
+        button.randoms {
+            width:39.999%;
+            margin:0 5%;
+        }
+        button.presets {
+            width:19.99999%;
+            margin:10px 5%;
+        }
+        button.presets:nth-of-type(odd) {
+            margin-right:0;
+            border-top-right-radius:0;
+            border-bottom-right-radius:0;
+        }
+        button.presets:nth-of-type(even) {
+            margin-left:0;
+            border-top-left-radius:0;
+            border-bottom-left-radius:0;
+        }
+        input[type="text"] {
+            border-radius:10px;
+            width:100%;
+            padding:10px;
+            box-sizing:border-box;
+            margin-bottom:10px;
+        }
+        a.remove {
+            float:right;
+            color:black;
+            text-decoration:none;
+            transition:color 0.25s ease;
+            display:inline-block;
+            margin-right:10px;
+            cursor:pointer;
+        }
+        a.remove:hover {
+            color:red;
+        }
+        li.name {
+            padding:10px;
+            border-radius:10px;
+            background-color:#fff;
+            margin:5px 0;
+            transition: background-color 0.5s ease;
+            box-sizing:border-box;
+            border: 2px outset #eee;
+            -webkit-animation: pop 0.5s ease-out;
+            animation: pop 0.5s ease-out;
+        }
+        ul#names, ul#log {
+            height:460px;
+            position:relative;
+            box-sizing:border-box;
+            margin-bottom:20px;
+        }
+        ul#log {
+            border: 2px inset #eee;
+            background-color:#fff;
+            padding:20px;
+            height:575px;
+        }
+        li.logname {
+            margin:5px;
+            font-size:24px;
+        }
+        .message {
+            top:40%;
+            left:0;
+            right:0;
+            bottom:40%;
+            position:absolute;
+            z-index:1;
+            color:#555;
+            font-style:italic;
+            text-align:center;
+            font-size:2em;
+            -webkit-animation: flash 2s;
+            animation: flash 2s;
+        }
+        li.name.selected {
+            background-color:#0095dd;
+            color:white;
+        }
+        li.name.implode {
+            -webkit-animation: implode 1s;
+            animation: implode 1s;
+        }
+        li.logname.bar {
+            height:0px;
+            border-width:0px;
+            border-top: 1px solid black;
+        }
+
+        ::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+            font-style: italic;
+        }
+        ::-moz-placeholder { /* Firefox 19+ */
+            font-style: italic;
+        }
+        :-ms-input-placeholder { /* IE 10+ */
+            font-style: italic;
+        }
+        :-moz-placeholder { /* Firefox 18- */
+            font-style: italic;
+        }
+
+        @keyframes flash {
+            from {
+            opacity:0;
+            }
+            to {
+            opacity:1;
+            }
+        }
+
+        @-webkit-keyframes flash {
+            from {
+            opacity:0;
+            }
+            to {
+            opacity:1;
+            }
+        }
+
+        @keyframes pop {
+            from {
+            -webkit-transform: scale(0);
+            -moz-transform: scale(0);
+            -ms-transform: scale(0);
+            -o-transform: scale(0);
+            transform: scale(0);
+            }
+            to {
+            -webkit-transform: scale(1);
+            -moz-transform: scale(1);
+            -ms-transform: scale(1);
+            -o-transform: scale(1);
+            transform: scale(1);
+            }
+        }
+
+        @-webkit-keyframes pop {
+            from {
+            -webkit-transform: scale(0);
+            -moz-transform: scale(0);
+            -ms-transform: scale(0);
+            -o-transform: scale(0);
+            transform: scale(0);
+            }
+            to {
+            -webkit-transform: scale(1);
+            -moz-transform: scale(1);
+            -ms-transform: scale(1);
+            -o-transform: scale(1);
+            transform: scale(1);
+            }  
+        }
+
+        @keyframes implode {
+            from {
+            -webkit-transform: scale(1);
+            -moz-transform: scale(1);
+            -ms-transform: scale(1);
+            -o-transform: scale(1);
+            transform: scale(1);
+            }
+            to {
+            -webkit-transform: scale(0);
+            -moz-transform: scale(0);
+            -ms-transform: scale(0);
+            -o-transform: scale(0);
+            transform: scale(0);
+            }  
+        }
+
+        @-webkit-keyframes implode {
+            from {
+            -webkit-transform: scale(1);
+            -moz-transform: scale(1);
+            -ms-transform: scale(1);
+            -o-transform: scale(1);
+            transform: scale(1);
+            }
+            to {
+            -webkit-transform: scale(0);
+            -moz-transform: scale(0);
+            -ms-transform: scale(0);
+            -o-transform: scale(0);
+            transform: scale(0);
+            }  
+        }
+    </style>
+  </head>
+  <body>
+    <h1>Randomizer!</h1>
+    <div class="box">
+      <ul id="names">
+
+      </ul>
+      <input type="text" id="adder" placeholder="Enter a name... then press Enter" />
+      <button class="presets" id="pl1" onclick="loadSave(this)">Load preset 1</button>
+      <button class="presets" id="ps1" onclick="saveSave(this)">Save preset 1</button>
+      <button class="presets" id="pl2" onclick="loadSave(this)">Load preset 2</button>
+      <button class="presets" id="ps2" onclick="saveSave(this)">Save preset 2</button>
+      <button class="presets" id="pl3" onclick="loadSave(this)">Load preset 3</button>
+      <button class="presets" id="ps3" onclick="saveSave(this)">Save preset 3</button>
+      <button class="presets" id="pl4" onclick="loadSave(this)">Load preset 4</button>
+      <button class="presets" id="ps4" onclick="saveSave(this)">Save preset 4</button>
+    </div>
+    <div class="box">
+      <ul id="log">
+
+      </ul>
+      <button class="randoms" onclick="getRandomName()" id="randomize">Randomize!</button>
+      <button class="randoms" onclick="reset()">Reset log/List of called people</button>
+    </div>
+  </body>
+</html>
